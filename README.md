@@ -77,7 +77,7 @@ class UserMailer < ActionMailer::Base
 end
 ```
 
-And then use the merge tags *|FIRST_NAME|*, *|LAST_NAME|*, *|RESET_PASSWORD_URL|* in your MailChimp Campaign.
+And then use the merge tags `*|FIRST_NAME|*`, `*|LAST_NAME|*`, `*|RESET_PASSWORD_URL|*` in your MailChimp Campaign.
 
 
 ## Contributing
