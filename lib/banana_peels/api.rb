@@ -7,6 +7,17 @@ module BananaPeels
     end
 
     def campaigns(api_key)
+      meta_list = campaigns_list(api_key)
+      campaigns = []
+      meta_list.each do |c_meta|
+        c = campaign(c_meta['id'], nil, api_key)
+        c.mailchimp_meta = c_meta
+        campaigns.push(c)
+      end
+      campaigns
+    end
+
+    def campaigns_list(api_key)
       api_data = api(api_key).campaigns.list([], 0, 1000) # TODO: presumes <= 1000 campaigns
       api_data['data']
     end

@@ -26,11 +26,11 @@ app/controllers/campaigns_controller.rb:
 class CampaignsController < ApplicationController
 
   def index
-    @campaigns = Chimp.campaigns(ENV['MAILCHIMP_API_KEY'])
-    @env_vars = {}
-    by_id = @campaigns.index_by{ |c| c['id'] }
+    @campaigns = BananaPeels.campaigns(ENV['MAILCHIMP_API_KEY'])
+    @env_vars = Hash.new{|h,k| h[k] = [] }
+    by_id = @campaigns.index_by(&:id)
     ENV.each do |k,v|
-      @env_vars[v] = k if by_id[v]
+      @env_vars[v].push(k) if by_id[v]
     end
   end
 
@@ -38,21 +38,39 @@ end
 
 ```
 
-app/views/campaigns/index.html.slim:
+app/views/campaigns/index.html.slim (http://slim-lang.com/, similar to haml):
 ```slim
 h1 MailChimp Campaigns
 table
   thead
     tr
       th Campaign Title
-      th Mailchimp ID
-      th ENV
+      th MailChimp ID
+      td
+        strong ENV Keys
+        |  | Merge Tags
   tbody
     - @campaigns.each do |c|
       tr
-        td = c['title']
-        td = c['id']
-        td = @env_vars[c['id']]
+        th = c.title
+        td = c.id
+        td
+          strong = @env_vars[c.id].join(', ')
+          |  |
+          = c.merge_tags_in_content.keys.join(', ')
+      tr
+        td rowspan="4"
+        th Subject
+        td = c.mailchimp_meta['subject']
+      tr
+        th From
+        td = c.from
+      tr
+        th Text Content
+        td = CGI.escapeHTML(c.text_content_unmerged).gsub("\n","\n<br>").html_safe
+      tr
+        th HTML Content
+        td = c.html_content_unmerged
 ```
 
 ### Sending transactional emails using a MailChimp Campaign as a template
@@ -60,6 +78,7 @@ table
 app/mailers/user_mailer.rb:
 ```ruby
 class UserMailer < ActionMailer::Base
+  include BananaPeels::MailerHelper
 
   def reset_password_instructions(record, token, opts={})
     user = User.find(record.id)
@@ -71,7 +90,7 @@ class UserMailer < ActionMailer::Base
       'LAST_NAME' => user.last_name,
       'RESET_PASSWORD_URL' => edit_user_password_url(reset_password_token: token),
     }
-    BananaPeels.mail(self, ENV['RESET_PASSWORD_CAMPAIGN_ID'], mail_options, merge_tags, ENV['MAILCHIMP_API_KEY'])
+    banana_mail(ENV['RESET_PASSWORD_CAMPAIGN_ID'], mail_options, merge_tags, ENV['MAILCHIMP_API_KEY'])
   end
 
 end

@@ -21,6 +21,9 @@ class BananaPeels::Campaign
     # TODO: Cache campaigns from mailchimp.
     @mailchimp_meta ||= @api.campaigns.list({ campaign_id: @campaign_id })['data'].first
   end
+  def mailchimp_meta=(mailchimp_meta)
+    @mailchimp_meta = mailchimp_meta
+  end
 
   def mailchimp_content
     # TODO: Cache.
@@ -32,6 +35,14 @@ class BananaPeels::Campaign
       from: from,
       subject: subject,
     }
+  end
+
+  def id
+    mailchimp_meta['id']
+  end
+
+  def title
+    mailchimp_meta['title']
   end
 
   def from
@@ -54,22 +65,49 @@ class BananaPeels::Campaign
     replace_merge_tags(mailchimp_meta['to_name'])
   end
 
-  def text_content
+  def merge_tags_in_content
+    merge_tags = Hash.new{|h,k| h[k] = [] }
+    {
+      to: mailchimp_meta['to_name'],
+      subject: mailchimp_meta['subject'],
+      html: html_content_unmerged,
+      text: text_content_unmerged,
+    }.each do |location, content|
+      find_merge_tags_in(content).each do |tag|
+        merge_tags[tag].push(location)
+      end
+    end
+    merge_tags
+  end
+
+  def find_merge_tags_in(string)
+    string.scan(/\*\|(\w+)\|\*/).flatten.uniq
+  end
+
+  def text_content_unmerged
     content = mailchimp_content['text'].to_s
     content = content.sub(/=*\s*Unsubscribe\s\*\|HTML:EMAIL\|\*.*\z/m,'') # Auto-replaced if deleted.
     content = content.sub(/=*\s*This\semail\swas\ssent\sto\s\*\|EMAIL\|\*.*\z/m,'') # When generated from HTML version.
     content = content.sub(/=*\s*[^\n]*\*\|UNSUB\|\*.*\z/m,'') # Original generation.
-    replace_merge_tags(content)
+    content
+  end
+
+  def text_content
+    replace_merge_tags(text_content_unmerged)
+  end
+
+  def html_content_unmerged
+    content = mailchimp_content['html'].to_s
+    content = content.sub(/(.*)<center>.*?canspamBarWrapper.*?<\/center>/m,'\1')
+    content
   end
 
   def html_content
-    content = mailchimp_content['html'].to_s
-    content = content.sub(/(.*)<center>.*?canspamBarWrapper.*?<\/center>/m,'\1')
     merge_tags = @merge_tags.dup
     merge_tags.each do |k,v|
       merge_tags[k] = CGI.escapeHTML(v.to_s).gsub("\n","\n<br>")
     end
-    replace_merge_tags(content, merge_tags)
+    replace_merge_tags(html_content_unmerged, merge_tags)
   end
 
   def replace_merge_tags(string, merge_tags=nil)
