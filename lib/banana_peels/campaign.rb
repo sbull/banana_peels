@@ -65,14 +65,20 @@ class BananaPeels::Campaign
     replace_merge_tags(mailchimp_meta['to_name'])
   end
 
-  def merge_tags_in_content
+  def merge_tags_in_content(options=nil)
+    options ||= {}
+    excludes = options[:exclude] || []
     merge_tags = Hash.new{|h,k| h[k] = [] }
-    {
-      to: mailchimp_meta['to_name'],
+    contents = {
+      to_name: mailchimp_meta['to_name'],
       subject: mailchimp_meta['subject'],
       html: html_content_unmerged,
       text: text_content_unmerged,
-    }.each do |location, content|
+    }
+    excludes.each do |ex|
+      contents.delete(ex)
+    end
+    contents.each do |location, content|
       find_merge_tags_in(content).each do |tag|
         merge_tags[tag].push(location)
       end

@@ -57,7 +57,7 @@ table
         td
           strong = @env_vars[c.id].join(', ')
           |  |
-          = c.merge_tags_in_content.keys.join(', ')
+          = c.merge_tags_in_content(exclude:[ :to_name ]).keys.join(', ')
       tr
         td rowspan="4"
         th Subject
