@@ -1,9 +1,12 @@
 class BananaPeels::Campaign
 
+  MERGE_TAG_REGEX = /\*\|(\S+?)\|\*/.freeze
+
+
   class << self
 
     def replace_merge_tags(string, merge_tags)
-      string.gsub(/\*\|(\w+)\|\*/) do
+      string.gsub(MERGE_TAG_REGEX) do
         merge_tags[$1.upcase]
       end
     end
@@ -13,8 +16,12 @@ class BananaPeels::Campaign
   # merge_tags: optional, nil for default
   def initialize(campaign_id, merge_tags, api_key)
     @campaign_id = campaign_id
-    @merge_tags = normalize_merge_tags(merge_tags || {})
+    @raw_merge_tags = merge_tags
     @api = BananaPeels.api(api_key)
+  end
+
+  def merge_tags
+    @normalized_merge_tags ||= normalize_merge_tags(@raw_merge_tags || {})
   end
 
   def mailchimp_meta
@@ -57,8 +64,8 @@ class BananaPeels::Campaign
     mailchimp_meta['from_email']
   end
 
-  def subject
-    replace_merge_tags(mailchimp_meta['subject'])
+  def subject(merge_tags=nil)
+    replace_merge_tags(mailchimp_meta['subject'], merge_tags)
   end
 
   def to_name
@@ -87,7 +94,7 @@ class BananaPeels::Campaign
   end
 
   def find_merge_tags_in(string)
-    string.scan(/\*\|(\w+)\|\*/).flatten.uniq
+    string.scan(MERGE_TAG_REGEX).flatten.uniq
   end
 
   def text_content_unmerged
@@ -109,7 +116,7 @@ class BananaPeels::Campaign
   end
 
   def html_content
-    merge_tags = @merge_tags.dup
+    merge_tags = self.merge_tags.dup
     merge_tags.each do |k,v|
       merge_tags[k] = CGI.escapeHTML(v.to_s).gsub("\n","\n<br>")
     end
@@ -117,7 +124,7 @@ class BananaPeels::Campaign
   end
 
   def replace_merge_tags(string, merge_tags=nil)
-    self.class.replace_merge_tags(string, merge_tags || @merge_tags)
+    self.class.replace_merge_tags(string, merge_tags || self.merge_tags)
   end
 
   def normalize_merge_tags(merge_tags)
@@ -129,6 +136,8 @@ class BananaPeels::Campaign
     end
     normalized['FNAME'] ||= normalized['FIRST_NAME']
     normalized['LNAME'] ||= normalized['LAST_NAME']
+    normalized['MC:SUBJECT'] ||= subject(normalized)
+    normalized['URL:MC_SUBJECT'] ||= CGI.escape(normalized['MC:SUBJECT'])
     normalized
   end
 
