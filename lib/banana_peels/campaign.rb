@@ -57,11 +57,11 @@ class BananaPeels::Campaign
   end
 
   def from_name
-    mailchimp_meta['from_name']
+    replace_merge_tags(mailchimp_meta['from_name'])
   end
 
   def from_email
-    mailchimp_meta['from_email']
+    replace_merge_tags(mailchimp_meta['from_email'])
   end
 
   def subject(merge_tags=nil)
