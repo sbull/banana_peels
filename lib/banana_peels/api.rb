@@ -3,7 +3,7 @@ module BananaPeels
   class << self
 
     def api(api_key)
-      Mailchimp::API.new(api_key)
+      API.new(api_key)
     end
 
     def campaigns(api_key)
@@ -51,5 +51,70 @@ module BananaPeels
     end
 
   end
+
+
+  class API
+
+    attr_reader :api_key
+
+
+    class << self
+
+      def cache_get(key)
+        cache[key]
+      end
+
+      def cache_set(key, value)
+        cache[key] = value if cache?
+        value
+      end
+
+      def cache?
+        ['true', 't', 'yes', 'y', 'on'].include?(ENV['BANANA_PEELS_CACHE'].to_s.downcase)
+      end
+
+
+      private
+
+      def cache
+        @cache ||= {}
+      end
+
+    end
+
+
+    def initialize(api_key)
+      @api_key = api_key
+    end
+
+    def method_missing(method, *args)
+      Proxy.new(@api_key, method)
+    end
+
+
+    class Proxy
+
+      def initialize(api_key, mod)
+        @api_key = api_key
+        @mod = mod
+      end
+
+      def method_missing(method, *args)
+        if API.cache?
+          cache_keys = [ @api_key, @mod.to_s, method.to_s ]
+          cache_keys.concat(args)
+          cache_key = cache_keys.to_json
+          cache_val = API.cache_get(cache_key)
+          return cache_val if cache_val
+        end
+        cache_val = Mailchimp::API.new(@api_key).__send__(@mod).__send__(method, *args)
+        API.cache_set(cache_key, cache_val) if API.cache?
+        cache_val
+      end
+
+    end
+
+  end
+
 
 end
