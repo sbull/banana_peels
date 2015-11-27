@@ -99,6 +99,18 @@ end
 And then use the merge tags `*|FIRST_NAME|*`, `*|LAST_NAME|*`, `*|RESET_PASSWORD_URL|*` in your MailChimp Campaign.
 
 
+### Caching
+
+To enable a rudimentary cache, set:
+```ruby
+ENV['BANANA_PEELS_CACHE'] = 'ON'
+```
+
+This caches the responses for identical API & argument combinations,
+and modifies individual campaign metadata calls to retrieve the metadata
+for all campaigns.
+
+
 ## Contributing
 
 1. Fork it

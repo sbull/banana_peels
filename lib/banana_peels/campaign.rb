@@ -17,6 +17,7 @@ class BananaPeels::Campaign
   def initialize(campaign_id, merge_tags, api_key)
     @campaign_id = campaign_id
     @raw_merge_tags = merge_tags
+    @api_key = api_key
     @api = BananaPeels.api(api_key)
   end
 
@@ -25,8 +26,18 @@ class BananaPeels::Campaign
   end
 
   def mailchimp_meta
-    # TODO: Cache campaigns from mailchimp.
-    @mailchimp_meta ||= @api.campaigns.list({ campaign_id: @campaign_id })['data'].first
+    @mailchimp_meta ||=
+      begin
+        meta = nil
+        if BananaPeels::API.cache?
+          campaigns_list_data = BananaPeels.campaigns_list(@api_key)
+          meta = campaigns_list_data.find{|camp| camp['id'] == @campaign_id }
+        end
+        unless meta
+          meta = @api.campaigns.list({ campaign_id: @campaign_id })['data'].first
+        end
+        meta
+      end
   end
   def mailchimp_meta=(mailchimp_meta)
     @mailchimp_meta = mailchimp_meta
